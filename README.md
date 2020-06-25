@@ -9,6 +9,7 @@ This repository contains my custom changes and features to it.
 - Merged PR [#1262](https://github.com/Jguer/yay/pull/1262)<br>
 - Improve output
 - Show more informations of AUR packages before installing/upgrading
+    - Languages used
 
 #### Packages
 

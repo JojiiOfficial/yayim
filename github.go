@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/url"
 	"strings"
+	"sync"
 	"time"
 
 	gosrc "github.com/Morganamilo/go-srcinfo"
@@ -82,40 +83,71 @@ func parseLanguages(languages map[string]int) map[string]float32 {
 
 const langParseFormat = "%dx %s;"
 
+type langErr struct {
+	languages map[string]int
+	err       error
+}
+
 func getLangsFromSourceinfos(srcInfos map[string]*gosrc.Srcinfo) (string, int, error) {
 	var sLangs string
 	langs := make(map[string]int)
 
-	// Loop all packages
-	for _, si := range srcInfos {
-		// Loop sources
-		for _, sourceURL := range si.Source {
-			u := filterSrcURL(sourceURL)
-			if u == nil {
-				continue
-			}
+	c := make(chan langErr, 1)
 
-			// Filter github
-			if u.Hostname() != "github.com" {
-				continue
-			}
+	go func() {
+		wg := sync.WaitGroup{}
 
-			// Request github API
-			lang, err := getLanguagesFromRepo(u.String())
-			if err != nil {
-				return "", 0, err
-			}
-
-			ls := parseLanguages(lang)
-
-			// Add languages to langs list
-			for lang := range ls {
-				val, ok := langs[lang]
-				if ok {
-					langs[lang] = val + 1
-				} else {
-					langs[lang] = 1
+		// Loop all packages
+		for _, si := range srcInfos {
+			// Loop sources
+			for _, sourceURL := range si.Source {
+				u := filterSrcURL(sourceURL)
+				if u == nil {
+					continue
 				}
+
+				// Filter github
+				if u.Hostname() != "github.com" {
+					continue
+				}
+
+				wg.Add(1)
+
+				// Do requests concurrent
+				go func() {
+					// Request github API
+					lang, err := getLanguagesFromRepo(u.String())
+					c <- langErr{
+						languages: lang,
+						err:       err,
+					}
+					wg.Done()
+				}()
+			}
+		}
+
+		// Wait for all requests
+		wg.Wait()
+
+		close(c)
+	}()
+
+	// Loop results and add
+	// them to 'lang'
+	for le := range c {
+		if le.err != nil {
+			return "", 0, le.err
+		}
+
+		ls := parseLanguages(le.languages)
+
+		// Add languages to langs list
+		for lang := range ls {
+			val, ok := langs[lang]
+			if ok {
+				langs[lang] = val + 1
+			} else {
+				langs[lang] = 1
 			}
 		}
 	}
