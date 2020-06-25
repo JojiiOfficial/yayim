@@ -82,6 +82,7 @@ type Configuration struct {
 	CombinedUpgrade    bool   `json:"combinedupgrade"`
 	UseAsk             bool   `json:"useask"`
 	BatchInstall       bool   `json:"batchinstall"`
+	Fuzzy              bool   `json:"fuzzy"`
 }
 
 var yayVersion = "10.0.0"
@@ -190,6 +191,7 @@ func defaultSettings() *Configuration {
 		EditMenu:           false,
 		UseAsk:             false,
 		CombinedUpgrade:    false,
+		Fuzzy:              false,
 	}
 
 	if os.Getenv("XDG_CACHE_HOME") != "" {

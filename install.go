@@ -200,7 +200,6 @@ func install(parser *arguments) (err error) {
 	}
 
 	do.Print()
-	fmt.Println()
 
 	if config.CleanAfter {
 		defer cleanAfter(do.Aur)
@@ -350,6 +349,7 @@ func install(parser *arguments) (err error) {
 		if errDeps := asdeps(parser, deps); errDeps != nil {
 			return errDeps
 		}
+
 		if errExp := asexp(parser, exp); errExp != nil {
 			return errExp
 		}
@@ -933,6 +933,7 @@ func buildInstallPkgbuilds(
 	parser *arguments,
 	incompatible stringset.StringSet,
 	conflicts stringset.MapStringSet) error {
+
 	arguments := parser.copy()
 	arguments.clearTargets()
 	arguments.op = "U"
