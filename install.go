@@ -285,11 +285,13 @@ func install(parser *arguments) (err error) {
 	}
 
 	// Append language check
-	langs, count, err := getLangsFromSourceinfos(srcinfos)
-	if err == nil {
-		printDownloads("Langs", count, 0, langs)
-	} else {
-		fmt.Println(err)
+	if config.LangCheck {
+		langs, count, err := getLangsFromSourceinfos(srcinfos)
+		if err == nil {
+			printDownloads("Langs", count, 0, langs)
+		} else {
+			fmt.Println(err)
+		}
 	}
 
 	if config.EditMenu {

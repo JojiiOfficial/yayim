@@ -81,6 +81,8 @@ _pacman_opts_common=(
 	'--topdown[Show repository packages first]'
 	'--fuzzy[Use fuzzy finding instead of number selection]
 	'--nofuzzy[Use number selection instead of fuzzy finding]'
+	'--langcheck[Print languages used in AUR repository]
+	'--nolangcheck[Don't print languages used in AUR repository]'
 	'--devel[Check -git/-svn/-hg development version]'
 	'--nodevel[Disable development version checking]'
 	'--cleanafter[Clean package sources after successful build]'

@@ -115,7 +115,9 @@ Permanent configuration options:
     --batchinstall        Build multiple AUR packages then install them together
     --nobatchinstall      Build and install each AUR package one by one
     --fuzzy               Use fuzzy finding instead of number selection
-    --nofuzzy             Use number selection instead of fuzzy finding
+	--nofuzzy             Use number selection instead of fuzzy finding
+	--langcheck           Print languages used in AUR repository
+	--nolangcheck         Don't print languages used in AUR repository
 
     --sudo                <file>  sudo command to use
     --sudoflags           <flags> Pass arguments to sudo

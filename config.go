@@ -83,6 +83,7 @@ type Configuration struct {
 	UseAsk             bool   `json:"useask"`
 	BatchInstall       bool   `json:"batchinstall"`
 	Fuzzy              bool   `json:"fuzzy"`
+	LangCheck          bool   `json:"langcheck"`
 }
 
 var yayVersion = "10.0.0"
