@@ -284,6 +284,14 @@ func install(parser *arguments) (err error) {
 		return err
 	}
 
+	// Append language check
+	langs, count, err := getLangsFromSourceinfos(srcinfos)
+	if err == nil {
+		printDownloads("Langs", count, 0, langs)
+	} else {
+		fmt.Println(err)
+	}
+
 	if config.EditMenu {
 		pkgbuildNumberMenu(do.Aur, remoteNamesCache)
 		toEdit, err = editNumberMenu(do.Aur, remoteNamesCache)

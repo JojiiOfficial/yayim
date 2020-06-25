@@ -335,11 +335,11 @@ func (do *depOrder) Print() {
 	printDownloads("Repo", repoLen, 9, repo)
 	printDownloads("Repo Make", repoMakeLen, 9, repoMake)
 	printDownloads("Aur", aurLen, 9, aur)
-	printDownloads("Lang", 1, 9, "C")
 	printDownloads("Aur Make", aurMakeLen, 9, aurMake)
 }
 
 func printDownloads(repoName string, length, padd int, packages string) {
+	packages = strings.TrimSpace(packages)
 	if length < 1 {
 		return
 	}
@@ -347,10 +347,12 @@ func printDownloads(repoName string, length, padd int, packages string) {
 	repoInfo := bold(blue("[" + repoName + ": " + strconv.Itoa(length) + "]"))
 
 	var padding string
-
-	if padd > len(repoName) {
-		paddingLen := padd - len(repoName)
-		padding = strings.Repeat(" ", paddingLen)
+	// Create padding for aligning
+	if padd != 0 {
+		paddMount := int(padd / 8)
+		padding = strings.Repeat("\t", paddMount)
+	} else {
+		padding = " "
 	}
 
 	fmt.Println(repoInfo + padding + cyan(packages))
