@@ -86,7 +86,7 @@ type Configuration struct {
 	LangCheck          bool   `json:"langcheck"`
 }
 
-var yayVersion = "10.0.0"
+var yayVersion = "10.0.2"
 
 var localePath = "/usr/share/locale"
 
