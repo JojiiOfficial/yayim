@@ -163,7 +163,11 @@ func getLangsFromSourceinfos(srcInfos map[string]*gosrc.Srcinfo) (string, int, e
 			sLangs += " "
 		}
 
-		sLangs += fmt.Sprintf(langParseFormat, count, lang)
+		if count == 1 {
+			sLangs += lang + ";"
+		} else {
+			sLangs += fmt.Sprintf(langParseFormat, count, lang)
+		}
 	}
 
 	// Append 'other' or remove last ';'
@@ -172,7 +176,11 @@ func getLangsFromSourceinfos(srcInfos map[string]*gosrc.Srcinfo) (string, int, e
 			sLangs += " "
 		}
 
-		sLangs += fmt.Sprintf(langParseFormat, val, "Other")
+		if val == 1 {
+			sLangs += "Other"
+		} else {
+			sLangs += fmt.Sprintf(langParseFormat, val, "Other")
+		}
 	} else {
 		if strings.HasSuffix(sLangs, ";") {
 			sLangs = sLangs[:len(sLangs)-1]
