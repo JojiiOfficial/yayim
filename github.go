@@ -154,13 +154,13 @@ func getLangsFromSourceinfos(srcInfos map[string]*gosrc.Srcinfo) (string, int, e
 
 	// Format to one liner
 	for lang, count := range langs {
-		if len(sLangs) != 0 {
-			sLangs += " "
-		}
-
 		// We want to add 'other' at the end
 		if strings.ToLower(lang) == "other" {
 			continue
+		}
+
+		if len(sLangs) != 0 {
+			sLangs += " "
 		}
 
 		sLangs += fmt.Sprintf(langParseFormat, count, lang)
