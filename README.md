@@ -1,6 +1,14 @@
 # Yay
 
-Yet Another Yogurt - An AUR Helper Written in Go
+Yet Another Yogurt - An AUR Helper Written in Go <br>
+This repository contains my custom changes and features to it.
+
+
+### Changes
+- Merged and adjusted PR [#1271](https://github.com/Jguer/yay/pull/1271)<br>
+- Merged PR [#1262](https://github.com/Jguer/yay/pull/1262)<br>
+- Improve output
+- Show more informations of AUR packages before installing/upgrading
 
 #### Packages
 
