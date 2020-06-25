@@ -15,6 +15,7 @@ import (
 	"github.com/leonelquinteros/gotext"
 	rpc "github.com/mikkeloscar/aur"
 
+	alpm "github.com/Jguer/go-alpm"
 	"github.com/Jguer/yay/v10/pkg/intrange"
 	"github.com/Jguer/yay/v10/pkg/multierror"
 	"github.com/Jguer/yay/v10/pkg/stringset"
@@ -108,6 +109,39 @@ func (q aurQuery) printSearch(start int) {
 	}
 }
 
+func formatAur(pkg *rpc.Pkg, i int, localDB *alpm.DB) string {
+	toprint := magenta(strconv.Itoa(i+1)+" ") +
+		bold(
+			colorHash("aur"),
+		) + "/" +
+		bold(pkg.Name) + " " +
+		cyan(pkg.Version) +
+		bold(
+			" (+"+strconv.Itoa(pkg.NumVotes),
+		) + " " +
+		bold(
+			strconv.FormatFloat(pkg.Popularity, 'f', 2, 64)+"%) ",
+		)
+
+	if pkg.Maintainer == "" {
+		toprint += bold(red("(Orphaned)")) + " "
+	}
+
+	if pkg.OutOfDate != 0 {
+		toprint += bold(red("(Out-of-date "+formatTime(pkg.OutOfDate)+")")) + " "
+	}
+
+	if p := localDB.Pkg(pkg.Name); p != nil {
+		if p.Version() != pkg.Version {
+			toprint += bold(green("(Installed: " + p.Version() + ")"))
+		} else {
+			toprint += bold(green("(Installed)"))
+		}
+	}
+	toprint += "\n    " + pkg.Description
+	return toprint
+}
+
 // PrintSearch receives a RepoSearch type and outputs pretty text.
 func (s repoQuery) printSearch() {
 	for i, res := range s {
@@ -149,6 +183,39 @@ func (s repoQuery) printSearch() {
 		toprint += "\n    " + res.Description()
 		fmt.Println(toprint)
 	}
+}
+
+// PrintSearch receives a RepoSearch type and outputs pretty text.
+func format(res *alpm.Package, i int) string {
+	toprint := magenta(strconv.Itoa(i+1)+" ") +
+		bold(
+			colorHash(res.DB().Name()),
+		) + "/" +
+		bold(res.Name()) + " " +
+		cyan(res.Version()) +
+		bold(
+			" ("+
+				human(res.Size())+" "+
+				human(res.ISize())+") ",
+		)
+
+	if len(res.Groups().Slice()) != 0 {
+		toprint += fmt.Sprint(res.Groups().Slice(), " ")
+	}
+
+	localDB, err := alpmHandle.LocalDB()
+	if err == nil {
+		if pkg := localDB.Pkg(res.Name()); pkg != nil {
+			if pkg.Version() != res.Version() {
+				toprint += bold(green("(Installed: " + pkg.Version() + ")"))
+			} else {
+				toprint += bold(green("(Installed)"))
+			}
+		}
+	}
+
+	toprint += "\n    " + res.Description()
+	return toprint
 }
 
 // Pretty print a set of packages from the same package base.
@@ -265,20 +332,28 @@ func (do *depOrder) Print() {
 		}
 	}
 
-	printDownloads("Repo", repoLen, repo)
-	printDownloads("Repo Make", repoMakeLen, repoMake)
-	printDownloads("Aur", aurLen, aur)
-	printDownloads("Aur Make", aurMakeLen, aurMake)
+	printDownloads("Repo", repoLen, 9, repo)
+	printDownloads("Repo Make", repoMakeLen, 9, repoMake)
+	printDownloads("Aur", aurLen, 9, aur)
+	printDownloads("Lang", 1, 9, "C")
+	printDownloads("Aur Make", aurMakeLen, 9, aurMake)
 }
 
-func printDownloads(repoName string, length int, packages string) {
+func printDownloads(repoName string, length, padd int, packages string) {
 	if length < 1 {
 		return
 	}
 
-	repoInfo := bold(blue(
-		"[" + repoName + ": " + strconv.Itoa(length) + "]"))
-	fmt.Println(repoInfo + cyan(packages))
+	repoInfo := bold(blue("[" + repoName + ": " + strconv.Itoa(length) + "]"))
+
+	var padding string
+
+	if padd > len(repoName) {
+		paddingLen := padd - len(repoName)
+		padding = strings.Repeat(" ", paddingLen)
+	}
+
+	fmt.Println(repoInfo + padding + cyan(packages))
 }
 
 // PrintInfo prints package info like pacman -Si.
