@@ -441,6 +441,8 @@ func earlyPacmanCall(parser *arguments) error {
 	} else {
 		// separate aur and repo targets
 		for _, target := range targets {
+			_, tn := splitDBFromName(target)
+
 			if pack, in := inRepos(syncDB, target); in {
 				// Prevent installing the same package twice
 				if gaw.IsInStringArray(target, repoTargets) {
@@ -449,10 +451,6 @@ func earlyPacmanCall(parser *arguments) error {
 
 				// View where the package is from
 				if pack != "" {
-					tn := target
-					if strings.HasPrefix(tn, pack) {
-						tn = tn[len(pack)+1:]
-					}
 					allTargets += colorHash(pack) + "/" + tn + " "
 				}
 
@@ -463,7 +461,7 @@ func earlyPacmanCall(parser *arguments) error {
 					continue
 				}
 
-				allTargets += colorHash("aur") + "/" + target + " "
+				allTargets += colorHash("aur") + "/" + tn + " "
 
 				parser.addTarget(target)
 				aurTargets = append(aurTargets, target)
