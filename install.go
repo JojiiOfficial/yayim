@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	alpm "github.com/Jguer/go-alpm"
+	"github.com/JojiiOfficial/gaw"
 	gosrc "github.com/Morganamilo/go-srcinfo"
 	"github.com/leonelquinteros/gotext"
 
@@ -399,27 +400,29 @@ func removeMake(do *depOrder) error {
 	return err
 }
 
-func inRepos(syncDB alpm.DBList, pkg string) bool {
+func inRepos(syncDB alpm.DBList, pkg string) (string, bool) {
 	target := toTarget(pkg)
 
 	if target.DB == "aur" {
-		return false
+		return "", false
 	} else if target.DB != "" {
-		return true
+		return target.DB, true
 	}
 
 	previousHideMenus := hideMenus
 	hideMenus = false
-	_, err := syncDB.FindSatisfier(target.DepString())
+	pack, err := syncDB.FindSatisfier(target.DepString())
 	hideMenus = previousHideMenus
 	if err == nil {
-		return true
+		return pack.DB().Name(), true
 	}
 
-	return !syncDB.FindGroupPkgs(target.Name).Empty()
+	return "", !syncDB.FindGroupPkgs(target.Name).Empty()
 }
 
 func earlyPacmanCall(parser *arguments) error {
+	repoTargets := []string{}
+	aurTargets := []string{}
 	arguments := parser.copy()
 	arguments.op = "S"
 	targets := parser.targets
@@ -431,17 +434,45 @@ func earlyPacmanCall(parser *arguments) error {
 		return err
 	}
 
+	allTargets := ""
+
 	if mode == modeRepo {
 		arguments.targets = targets
 	} else {
 		// separate aur and repo targets
 		for _, target := range targets {
-			if inRepos(syncDB, target) {
+			if pack, in := inRepos(syncDB, target); in {
+				// Prevent installing the same package twice
+				if gaw.IsInStringArray(target, repoTargets) {
+					continue
+				}
+
+				// View where the package is from
+				if pack != "" {
+					tn := target
+					if strings.HasPrefix(tn, pack) {
+						tn = tn[len(pack)+1:]
+					}
+					allTargets += colorHash(pack) + "/" + tn + " "
+				}
+
 				arguments.addTarget(target)
+				repoTargets = append(repoTargets, target)
 			} else {
+				if gaw.IsInStringArray(target, aurTargets) {
+					continue
+				}
+
+				allTargets += colorHash("aur") + "/" + target + " "
+
 				parser.addTarget(target)
+				aurTargets = append(aurTargets, target)
 			}
 		}
+	}
+
+	if len(allTargets) > 0 {
+		fmt.Println("Installing:", allTargets)
 	}
 
 	if parser.existsArg("y", "refresh") || parser.existsArg("u", "sysupgrade") || len(arguments.targets) > 0 {

@@ -2,6 +2,7 @@ module github.com/Jguer/yay/v10
 
 require (
 	github.com/Jguer/go-alpm v0.0.0-20200405152916-a3feea4322e9
+	github.com/JojiiOfficial/gaw v1.2.8
 	github.com/Morganamilo/go-pacmanconf v0.0.0-20180910220353-9c5265e1b14f
 	github.com/Morganamilo/go-srcinfo v1.0.0
 	github.com/google/go-github/v32 v32.0.0
@@ -10,7 +11,7 @@ require (
 	github.com/mikkeloscar/aur v0.0.0-20200113170522-1cb4e2949656
 	github.com/pkg/errors v0.9.1
 	golang.org/x/crypto v0.0.0-20200622213623-75b288015ac9
-	golang.org/x/sys v0.0.0-20200622214017-ed371f2e16b4 // indirect
+	golang.org/x/sys v0.0.0-20200625212154-ddb9806d33ae // indirect
 )
 
 go 1.14
