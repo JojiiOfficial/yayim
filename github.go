@@ -53,10 +53,10 @@ func getLanguagesFromRepo(repo string) (map[string]int, error) {
 }
 
 // Filter important languages
-func parseLanguages(languages map[string]int) map[string]float32 {
+func parseLanguages(languages map[string]int) map[string]int {
 	var allBytes uint
-	var percent, usedPercent float32
-	langs := make(map[string]float32)
+	var percent, usedPercent int
+	langs := make(map[string]int)
 
 	// Calculate all bytes
 	for _, bs := range languages {
@@ -67,7 +67,7 @@ func parseLanguages(languages map[string]int) map[string]float32 {
 	// with a use of more than 10%
 	for lang, bs := range languages {
 		if uint(bs) > uint(0.1*float64(allBytes)) {
-			percent = float32(uint(bs) * 100 / allBytes)
+			percent = int(uint(bs) * 100 / allBytes)
 			usedPercent += percent
 			langs[lang] = percent
 		}
@@ -81,7 +81,7 @@ func parseLanguages(languages map[string]int) map[string]float32 {
 	return langs
 }
 
-const langParseFormat = "%dx %s;"
+const langParseFormat = "%d%s %s;"
 
 type langErr struct {
 	languages map[string]int
@@ -152,6 +152,13 @@ func getLangsFromSourceinfos(srcInfos map[string]*gosrc.Srcinfo) (string, int, e
 		}
 	}
 
+	sLangs = langsToOneliner(langs, "x")
+	return sLangs, len(langs), nil
+}
+
+func langsToOneliner(langs map[string]int, unit string) string {
+	var sLangs string
+
 	// Format to one liner
 	for lang, count := range langs {
 		// We want to add 'other' at the end
@@ -166,7 +173,7 @@ func getLangsFromSourceinfos(srcInfos map[string]*gosrc.Srcinfo) (string, int, e
 		if count == 1 {
 			sLangs += lang + ";"
 		} else {
-			sLangs += fmt.Sprintf(langParseFormat, count, lang)
+			sLangs += fmt.Sprintf(langParseFormat, count, unit, lang)
 		}
 	}
 
@@ -179,7 +186,7 @@ func getLangsFromSourceinfos(srcInfos map[string]*gosrc.Srcinfo) (string, int, e
 		if val == 1 {
 			sLangs += "Other"
 		} else {
-			sLangs += fmt.Sprintf(langParseFormat, val, "Other")
+			sLangs += fmt.Sprintf(langParseFormat, val, unit, "Other")
 		}
 	} else {
 		if strings.HasSuffix(sLangs, ";") {
@@ -187,7 +194,7 @@ func getLangsFromSourceinfos(srcInfos map[string]*gosrc.Srcinfo) (string, int, e
 		}
 	}
 
-	return sLangs, len(langs), nil
+	return sLangs
 }
 
 // Start after given substring

@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io/ioutil"
 	"net/http"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -362,29 +363,67 @@ func printDownloads(repoName string, length, padd int, packages string) {
 func PrintInfo(a *rpc.Pkg) {
 	text.PrintInfoValue(gotext.Get("Repository"), "aur")
 	text.PrintInfoValue(gotext.Get("Name"), a.Name)
-	text.PrintInfoValue(gotext.Get("Keywords"), strings.Join(a.Keywords, "  "))
+	if len(a.Keywords) > 0 {
+		text.PrintInfoValue(gotext.Get("Keywords"), strings.Join(a.Keywords, "  "))
+	}
+
 	text.PrintInfoValue(gotext.Get("Version"), a.Version)
 	text.PrintInfoValue(gotext.Get("Description"), a.Description)
 	text.PrintInfoValue(gotext.Get("URL"), a.URL)
 	text.PrintInfoValue(gotext.Get("AUR URL"), config.AURURL+"/packages/"+a.Name)
-	text.PrintInfoValue(gotext.Get("Groups"), strings.Join(a.Groups, "  "))
+
+	if len(a.Groups) > 0 {
+		text.PrintInfoValue(gotext.Get("Groups"), strings.Join(a.Groups, "  "))
+	}
+
+	if len(a.URL) > 0 {
+		u, err := url.Parse(a.URL)
+		if err == nil && u.Host == "github.com" {
+			lang, err := getLanguagesFromRepo(a.URL)
+			if err == nil {
+				add := ""
+				if len(lang) > 1 {
+					add = "s"
+				}
+				text.PrintInfoValue(gotext.Get("Language"+add), langsToOneliner(parseLanguages(lang), "%"))
+			}
+		}
+	}
+
 	text.PrintInfoValue(gotext.Get("Licenses"), strings.Join(a.License, "  "))
-	text.PrintInfoValue(gotext.Get("Provides"), strings.Join(a.Provides, "  "))
-	text.PrintInfoValue(gotext.Get("Depends On"), strings.Join(a.Depends, "  "))
-	text.PrintInfoValue(gotext.Get("Make Deps"), strings.Join(a.MakeDepends, "  "))
-	text.PrintInfoValue(gotext.Get("Check Deps"), strings.Join(a.CheckDepends, "  "))
-	text.PrintInfoValue(gotext.Get("Optional Deps"), strings.Join(a.OptDepends, "  "))
-	text.PrintInfoValue(gotext.Get("Conflicts With"), strings.Join(a.Conflicts, "  "))
+
+	if len(a.Provides) > 0 {
+		text.PrintInfoValue(gotext.Get("Provides"), strings.Join(a.Provides, "  "))
+	}
+
+	if len(a.Depends) > 0 {
+		text.PrintInfoValue(gotext.Get("Depends On"), strings.Join(a.Depends, "  "))
+	}
+
+	if len(a.MakeDepends) > 0 {
+		text.PrintInfoValue(gotext.Get("Make Deps"), strings.Join(a.MakeDepends, "  "))
+	}
+
+	if len(a.CheckDepends) > 0 {
+		text.PrintInfoValue(gotext.Get("Check Deps"), strings.Join(a.CheckDepends, "  "))
+	}
+
+	if len(a.OptDepends) > 0 {
+		text.PrintInfoValue(gotext.Get("Optional Deps"), strings.Join(a.OptDepends, "  "))
+	}
+
+	if len(a.Conflicts) > 0 {
+		text.PrintInfoValue(gotext.Get("Conflicts With"), strings.Join(a.Conflicts, "  "))
+	}
+
 	text.PrintInfoValue(gotext.Get("Maintainer"), a.Maintainer)
 	text.PrintInfoValue(gotext.Get("Votes"), fmt.Sprintf("%d", a.NumVotes))
-	text.PrintInfoValue(gotext.Get("Popularity"), fmt.Sprintf("%f", a.Popularity))
+	text.PrintInfoValue(gotext.Get("Popularity"), fmt.Sprintf("%.2f", a.Popularity))
 	text.PrintInfoValue(gotext.Get("First Submitted"), formatTimeQuery(a.FirstSubmitted))
 	text.PrintInfoValue(gotext.Get("Last Modified"), formatTimeQuery(a.LastModified))
 
 	if a.OutOfDate != 0 {
 		text.PrintInfoValue(gotext.Get("Out-of-date"), formatTimeQuery(a.OutOfDate))
-	} else {
-		text.PrintInfoValue(gotext.Get("Out-of-date"), "No")
 	}
 
 	if cmdArgs.existsDouble("i") {
