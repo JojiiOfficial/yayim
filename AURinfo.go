@@ -73,7 +73,7 @@ func getSourceType(source string, u *url.URL) string {
 			source = source[:len(source)-1]
 		}
 
-		ending := source[strings.LastIndex(source, ".")+1:]
+		ending := strings.ToLower(source[strings.LastIndex(source, ".")+1:])
 		switch ending {
 		case "patch":
 			return "Patch file"
@@ -85,6 +85,8 @@ func getSourceType(source string, u *url.URL) string {
 			return "gz archive"
 		case "diff":
 			return "Diff file"
+		case "png", "jpg":
+			return "Images"
 		case "sig":
 			return "Signature"
 		}
