@@ -2,7 +2,7 @@ image: archlinux:latest
 
 before_script:
  - pacman -Syu --noconfirm
- - pacman -S go --noconfirm
+ - pacman -S go base-devel --needed --noconfirm
 
 stages:
   - test
