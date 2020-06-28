@@ -52,19 +52,6 @@ func (warnings *aurWarnings) print() {
 	}
 }
 
-// human method returns results in human readable format.
-func human(size int64) string {
-	floatsize := float32(size)
-	units := [...]string{"", "Ki", "Mi", "Gi", "Ti", "Pi", "Ei", "Zi", "Yi"}
-	for _, unit := range units {
-		if floatsize < 1024 {
-			return fmt.Sprintf("%.1f %sB", floatsize, unit)
-		}
-		floatsize /= 1024
-	}
-	return fmt.Sprintf("%d%s", size, "B")
-}
-
 // PrintSearch handles printing search results in a given format
 func (q aurQuery) printSearch(start int) {
 	localDB, _ := alpmHandle.LocalDB()
@@ -85,7 +72,7 @@ func (q aurQuery) printSearch(start int) {
 			continue
 		}
 
-		toprint += bold(colorHash("aur")) + "/" + bold(q[i].Name) +
+		toprint += bold(text.ColorHash("aur")) + "/" + bold(q[i].Name) +
 			" " + cyan(q[i].Version) +
 			bold(" (+"+strconv.Itoa(q[i].NumVotes)) +
 			" " + bold(strconv.FormatFloat(q[i].Popularity, 'f', 2, 64)+") ")
@@ -95,7 +82,7 @@ func (q aurQuery) printSearch(start int) {
 		}
 
 		if q[i].OutOfDate != 0 {
-			toprint += bold(red(gotext.Get("(Out-of-date: %s)", formatTime(q[i].OutOfDate)))) + " "
+			toprint += bold(red(gotext.Get("(Out-of-date: %s)", text.FormatTime(q[i].OutOfDate)))) + " "
 		}
 
 		if pkg := localDB.Pkg(q[i].Name); pkg != nil {
@@ -113,7 +100,7 @@ func (q aurQuery) printSearch(start int) {
 func formatAur(pkg *rpc.Pkg, i int, localDB *alpm.DB) string {
 	toprint := magenta(strconv.Itoa(i+1)+" ") +
 		bold(
-			colorHash("aur"),
+			text.ColorHash("aur"),
 		) + "/" +
 		bold(pkg.Name) + " " +
 		cyan(pkg.Version) +
@@ -129,7 +116,7 @@ func formatAur(pkg *rpc.Pkg, i int, localDB *alpm.DB) string {
 	}
 
 	if pkg.OutOfDate != 0 {
-		toprint += bold(red("(Out-of-date "+formatTime(pkg.OutOfDate)+")")) + " "
+		toprint += bold(red("(Out-of-date "+text.FormatTime(pkg.OutOfDate)+")")) + " "
 	}
 
 	if p := localDB.Pkg(pkg.Name); p != nil {
@@ -161,10 +148,10 @@ func (s repoQuery) printSearch() {
 			continue
 		}
 
-		toprint += bold(colorHash(res.DB().Name())) + "/" + bold(res.Name()) +
+		toprint += bold(text.ColorHash(res.DB().Name())) + "/" + bold(res.Name()) +
 			" " + cyan(res.Version()) +
-			bold(" ("+human(res.Size())+
-				" "+human(res.ISize())+") ")
+			bold(" ("+text.Human(res.Size())+
+				" "+text.Human(res.ISize())+") ")
 
 		if len(res.Groups().Slice()) != 0 {
 			toprint += fmt.Sprint(res.Groups().Slice(), " ")
@@ -190,14 +177,14 @@ func (s repoQuery) printSearch() {
 func format(res *alpm.Package, i int) string {
 	toprint := magenta(strconv.Itoa(i+1)+" ") +
 		bold(
-			colorHash(res.DB().Name()),
+			text.ColorHash(res.DB().Name()),
 		) + "/" +
 		bold(res.Name()) + " " +
 		cyan(res.Version()) +
 		bold(
 			" ("+
-				human(res.Size())+" "+
-				human(res.ISize())+") ",
+				text.Human(res.Size())+" "+
+				text.Human(res.ISize())+") ",
 		)
 
 	if len(res.Groups().Slice()) != 0 {
@@ -238,8 +225,8 @@ func (b Base) String() string {
 	return str
 }
 
-func (u upgrade) StylizedNameWithRepository() string {
-	return bold(colorHash(u.Repository)) + "/" + bold(u.Name)
+func (u *upgrade) StylizedNameWithRepository() string {
+	return bold(text.ColorHash(u.Repository)) + "/" + bold(u.Name)
 }
 
 // Print prints the details of the packages to upgrade.
@@ -419,11 +406,11 @@ func PrintInfo(a *rpc.Pkg) {
 	text.PrintInfoValue(gotext.Get("Maintainer"), a.Maintainer)
 	text.PrintInfoValue(gotext.Get("Votes"), fmt.Sprintf("%d", a.NumVotes))
 	text.PrintInfoValue(gotext.Get("Popularity"), fmt.Sprintf("%.2f", a.Popularity))
-	text.PrintInfoValue(gotext.Get("First Submitted"), formatTimeQuery(a.FirstSubmitted))
-	text.PrintInfoValue(gotext.Get("Last Modified"), formatTimeQuery(a.LastModified))
+	text.PrintInfoValue(gotext.Get("First Submitted"), text.FormatTimeQuery(a.FirstSubmitted))
+	text.PrintInfoValue(gotext.Get("Last Modified"), text.FormatTimeQuery(a.LastModified))
 
 	if a.OutOfDate != 0 {
-		text.PrintInfoValue(gotext.Get("Out-of-date"), formatTimeQuery(a.OutOfDate))
+		text.PrintInfoValue(gotext.Get("Out-of-date"), text.FormatTimeQuery(a.OutOfDate))
 	}
 
 	if cmdArgs.existsDouble("i") {
@@ -451,7 +438,7 @@ func biggestPackages() {
 	}
 
 	for i := 0; i < 10; i++ {
-		fmt.Printf("%s: %s\n", bold(pkgS[i].Name()), cyan(human(pkgS[i].ISize())))
+		fmt.Printf("%s: %s\n", bold(pkgS[i].Name()), cyan(text.Human(pkgS[i].ISize())))
 	}
 	// Could implement size here as well, but we just want the general idea
 }
@@ -473,7 +460,7 @@ func localStatistics() error {
 	text.Infoln(gotext.Get("Total installed packages: %s", cyan(strconv.Itoa(info.Totaln))))
 	text.Infoln(gotext.Get("Total foreign installed packages: %s", cyan(strconv.Itoa(len(remoteNames)))))
 	text.Infoln(gotext.Get("Explicitly installed packages: %s", cyan(strconv.Itoa(info.Expln))))
-	text.Infoln(gotext.Get("Total Size occupied by packages: %s", cyan(human(info.TotalSize))))
+	text.Infoln(gotext.Get("Total Size occupied by packages: %s", cyan(text.Human(info.TotalSize))))
 	fmt.Println(bold(cyan("===========================================")))
 	text.Infoln(gotext.Get("Ten biggest packages:"))
 	biggestPackages()
@@ -586,7 +573,7 @@ func (item *item) print(buildTime time.Time) {
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
 	} else {
-		fd = formatTime(int(date.Unix()))
+		fd = text.FormatTime(int(date.Unix()))
 		if _, double, _ := cmdArgs.getArg("news", "w"); !double && !buildTime.IsZero() {
 			if buildTime.After(date) {
 				return
@@ -653,18 +640,6 @@ func printNewsFeed() error {
 	return nil
 }
 
-// Formats a unix timestamp to ISO 8601 date (yyyy-mm-dd)
-func formatTime(i int) string {
-	t := time.Unix(int64(i), 0)
-	return t.Format("2006-01-02")
-}
-
-// Formats a unix timestamp to ISO 8601 date (Mon 02 Jan 2006 03:04:05 PM MST)
-func formatTimeQuery(i int) string {
-	t := time.Unix(int64(i), 0)
-	return t.Format("Mon 02 Jan 2006 03:04:05 PM MST")
-}
-
 const (
 	redCode     = "\x1b[31m"
 	greenCode   = "\x1b[32m"
@@ -678,7 +653,7 @@ const (
 )
 
 func stylize(startCode, in string) string {
-	if useColor {
+	if text.UseColor {
 		return startCode + in + resetCode
 	}
 
@@ -711,19 +686,6 @@ func magenta(in string) string {
 
 func bold(in string) string {
 	return stylize(boldCode, in)
-}
-
-// Colors text using a hashing algorithm. The same text will always produce the
-// same color while different text will produce a different color.
-func colorHash(name string) (output string) {
-	if !useColor {
-		return name
-	}
-	var hash uint = 5381
-	for i := 0; i < len(name); i++ {
-		hash = uint(name[i]) + ((hash << 5) + (hash))
-	}
-	return fmt.Sprintf("\x1b[%dm%s\x1b[0m", hash%6+31, name)
 }
 
 func providerMenu(dep string, providers providers) *rpc.Pkg {

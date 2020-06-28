@@ -451,7 +451,7 @@ func earlyPacmanCall(parser *arguments) error {
 
 				// View where the package is from
 				if pack != "" {
-					allTargets += colorHash(pack) + "/" + tn + " "
+					allTargets += text.ColorHash(pack) + "/" + tn + " "
 				}
 
 				arguments.addTarget(target)
@@ -461,7 +461,7 @@ func earlyPacmanCall(parser *arguments) error {
 					continue
 				}
 
-				allTargets += colorHash("aur") + "/" + tn + " "
+				allTargets += text.ColorHash("aur") + "/" + tn + " "
 
 				parser.addTarget(target)
 				aurTargets = append(aurTargets, target)
@@ -794,7 +794,7 @@ func showPkgbuildDiffs(bases []Base, cloned stringset.StringSet) error {
 		args := []string{"diff",
 			start + "..HEAD@{upstream}", "--src-prefix",
 			dir + "/", "--dst-prefix", dir + "/", "--", ".", ":(exclude).SRCINFO"}
-		if useColor {
+		if text.UseColor {
 			args = append(args, "--color=always")
 		} else {
 			args = append(args, "--color=never")

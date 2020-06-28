@@ -468,29 +468,29 @@ func displayFuzzyMenu(pkgS []string) (err error) {
 	localDB, _ := alpmHandle.LocalDB()
 
 	i, err := fuzzyfinder.Find(q, func(i int) string {
-		var text string
+		var txt string
 
-		oldColor := useColor
-		useColor = false
+		oldColor := text.UseColor
+		text.UseColor = false
 
 		if reverse {
 			if i < lenpq {
-				text = format(&pq[lenpq-i-1], i)
+				txt = format(&pq[lenpq-i-1], i)
 			} else {
 				j := i - lenpq
-				text = formatAur(&aq[lenaq-j-1], i, localDB)
+				txt = formatAur(&aq[lenaq-j-1], i, localDB)
 			}
 		} else {
 			if i < lenaq {
-				text = formatAur(&aq[i], i, localDB)
+				txt = formatAur(&aq[i], i, localDB)
 			} else {
 				j := i - lenaq
-				text = format(&pq[j], i)
+				txt = format(&pq[j], i)
 			}
 		}
 
-		useColor = oldColor
-		return text
+		text.UseColor = oldColor
+		return txt
 	})
 	if err != nil {
 		return err
