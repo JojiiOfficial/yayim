@@ -10,6 +10,7 @@ This repository contains my custom changes and features to it.
 - Improve output
 - Show more informations of AUR packages before installing/upgrading
     - Languages used
+    - Sources used (planned)
 
 #### Packages
 
@@ -47,7 +48,7 @@ Alternatively, the initial installation of Yay can be done by cloning the PKGBUI
 building with makepkg:
 
 ```sh
-git clone https://aur.archlinux.org/yay.git
+git clone https://aur.archlinux.org/yayim.git
 cd yay
 makepkg -si
 ```
