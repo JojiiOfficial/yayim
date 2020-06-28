@@ -1,4 +1,8 @@
-image: golang:latest
+image: archlinux:latest
+
+before_script:
+ - pacman -Syu --no-confirm
+ - pacman -S go
 
 stages:
   - test
