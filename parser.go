@@ -440,6 +440,8 @@ func isArg(arg string) bool {
 	case "nofuzzy":
 	case "langcheck":
 	case "nolangcheck":
+	case "srccheck":
+	case "nosrccheck":
 	case "combinedupgrade":
 	case "nocombinedupgrade":
 	case "a", "aur":
@@ -603,6 +605,10 @@ func handleConfig(option, value string) bool {
 		config.LangCheck = true
 	case "nolangcheck":
 		config.LangCheck = false
+	case "srccheck":
+		config.SourceCheck = true
+	case "nosrccheck":
+		config.SourceCheck = false
 	case "combinedupgrade":
 		config.CombinedUpgrade = true
 	case "nocombinedupgrade":

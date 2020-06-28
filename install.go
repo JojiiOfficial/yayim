@@ -285,13 +285,49 @@ func install(parser *arguments) (err error) {
 		return err
 	}
 
+	// Create an aurInfo object for
+	// language and src checks
+	aurInfo := NewAURInfo(srcinfos)
+
 	// Append language check
 	if config.LangCheck {
-		langs, count, err := getLangsFromSourceinfos(srcinfos)
+		langs, count, err := aurInfo.GetLanguages()
 		if err == nil {
 			printDownloads("Langs", count, 0, langs)
 		} else {
 			fmt.Println(err)
+		}
+	}
+
+	// Print used sources
+	if config.SourceCheck {
+		sources, count := aurInfo.GetSourceList()
+		if len(sources) > 0 {
+			printDownloads("Sources", int(count), 0, "")
+			for ftype, source := range sources {
+				// Append 'other' at the end
+				if ftype == "other" {
+					continue
+				}
+
+				if len(source) == 0 {
+					continue
+				}
+
+				fmt.Println(blue(" [" + ftype + "] "))
+				for _, s := range source {
+					fmt.Println(blue("  ->"), s)
+				}
+			}
+
+			if len(sources["other"]) > 0 {
+				fmt.Println(blue(" [Other] "))
+				for _, s := range sources["other"] {
+					fmt.Println(blue("  ->"), s)
+				}
+			}
+
+			fmt.Println()
 		}
 	}
 

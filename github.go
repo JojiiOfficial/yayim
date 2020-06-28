@@ -101,7 +101,8 @@ func getLangsFromSourceinfos(srcInfos map[string]*gosrc.Srcinfo) (string, int, e
 		for _, si := range srcInfos {
 			// Loop sources
 			for _, sourceURL := range si.Source {
-				u := filterSrcURL(sourceURL)
+				u := toURL(filterSrc(sourceURL.Value))
+
 				if u == nil {
 					continue
 				}
@@ -207,14 +208,19 @@ func startAtSubstring(s string, substring string) string {
 }
 
 // Remove some prefixes used by PKGBUILDS
-func filterSrcURL(srcURL gosrc.ArchString) *url.URL {
-	src := startAtSubstring(srcURL.Value, "::")
+func filterSrc(srcURL string) string {
+	src := startAtSubstring(srcURL, "::")
 	src = startAtSubstring(src, "+")
+	return src
+}
 
+func toURL(src string) *url.URL {
 	// Parse src url
 	u, err := url.Parse(src)
 	if err != nil {
-		return nil
+		return &url.URL{
+			Host: src,
+		}
 	}
 
 	return u

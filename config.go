@@ -84,6 +84,7 @@ type Configuration struct {
 	BatchInstall       bool   `json:"batchinstall"`
 	Fuzzy              bool   `json:"fuzzy"`
 	LangCheck          bool   `json:"langcheck"`
+	SourceCheck        bool   `json:"srccheck"`
 }
 
 var yayVersion = "10.0.2"
@@ -189,7 +190,8 @@ func defaultSettings() *Configuration {
 		EditMenu:           false,
 		UseAsk:             false,
 		CombinedUpgrade:    false,
-		Fuzzy:              false,
+		Fuzzy:              true,
+		SourceCheck:        true,
 	}
 
 	if os.Getenv("XDG_CACHE_HOME") != "" {

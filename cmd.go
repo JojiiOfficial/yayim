@@ -118,6 +118,8 @@ Permanent configuration options:
 	--nofuzzy             Use number selection instead of fuzzy finding
 	--langcheck           Print languages used in AUR repository
 	--nolangcheck         Don't print languages used in AUR repository
+	--srccheck            View sources before building an AUR package
+	--nosrccheck          Don't View sources before building an AUR package
 
     --sudo                <file>  sudo command to use
     --sudoflags           <flags> Pass arguments to sudo
