@@ -1,0 +1,21 @@
+image: archlinux:latest
+
+before_script:
+ - pacman -Syu --noconfirm
+ - pacman -S go base-devel --needed --noconfirm
+
+stages:
+  - test
+  - build
+
+format:
+  stage: test
+  script:
+    - go fmt $(go list ./... | grep -v /vendor/)
+    - go vet $(go list ./... | grep -v /vendor/)
+    - go test -race $(go list ./... | grep -v /vendor/)
+
+compile:
+  stage: build
+  script:
+     - make
