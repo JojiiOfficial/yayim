@@ -135,7 +135,7 @@ func (config *Configuration) saveConfig() error {
 	if err != nil {
 		return err
 	}
-	in, err := os.OpenFile(configFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0644)
+	in, err := os.OpenFile(configFile, os.O_RDWR|os.O_CREATE|os.O_TRUNC, 0600)
 	if err != nil {
 		return err
 	}

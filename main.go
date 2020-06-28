@@ -87,7 +87,7 @@ func initVCS() error {
 
 func initHomeDirs() error {
 	if _, err := os.Stat(configHome); os.IsNotExist(err) {
-		if err = os.MkdirAll(configHome, 0755); err != nil {
+		if err = os.MkdirAll(configHome, 0700); err != nil {
 			return errors.New(gotext.Get("failed to create config directory '%s': %s", configHome, err))
 		}
 	} else if err != nil {
@@ -95,7 +95,7 @@ func initHomeDirs() error {
 	}
 
 	if _, err := os.Stat(cacheHome); os.IsNotExist(err) {
-		if err = os.MkdirAll(cacheHome, 0755); err != nil {
+		if err = os.MkdirAll(cacheHome, 0700); err != nil {
 			return errors.New(gotext.Get("failed to create cache directory '%s': %s", cacheHome, err))
 		}
 	} else if err != nil {
@@ -107,7 +107,7 @@ func initHomeDirs() error {
 
 func initBuildDir() error {
 	if _, err := os.Stat(config.BuildDir); os.IsNotExist(err) {
-		if err = os.MkdirAll(config.BuildDir, 0755); err != nil {
+		if err = os.MkdirAll(config.BuildDir, 0700); err != nil {
 			return errors.New(gotext.Get("failed to create BuildDir directory '%s': %s", config.BuildDir, err))
 		}
 	} else if err != nil {
