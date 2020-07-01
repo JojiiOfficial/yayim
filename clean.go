@@ -216,6 +216,9 @@ func cleanAfter(bases []Base) {
 
 	for i, base := range bases {
 		dir := filepath.Join(config.BuildDir, base.Pkgbase())
+		if !isGitRepository(dir) {
+			continue
+		}
 
 		text.OperationInfoln(gotext.Get("Cleaning (%d/%d): %s", i+1, len(bases), cyan(dir)))
 
@@ -224,7 +227,7 @@ func cleanAfter(bases []Base) {
 			text.Errorln(gotext.Get("error resetting %s: %s", base.String(), stderr))
 		}
 
-		if err := show(passToGit(dir, "clean", "-fx")); err != nil {
+		if err := show(passToGit(dir, "clean", "-fx", "--exclude='*.pkg.*'")); err != nil {
 			fmt.Fprintln(os.Stderr, err)
 		}
 	}
