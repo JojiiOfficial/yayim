@@ -411,6 +411,8 @@ func PrintInfo(a *rpc.Pkg) {
 
 	if a.OutOfDate != 0 {
 		text.PrintInfoValue(gotext.Get("Out-of-date"), text.FormatTimeQuery(a.OutOfDate))
+	} else {
+		text.PrintInfoValue(gotext.Get("Out-of-date"), "No")
 	}
 
 	if cmdArgs.existsDouble("i") {
