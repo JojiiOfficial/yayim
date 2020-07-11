@@ -74,12 +74,12 @@ _yay() {
           sortby answerclean answerdiff answeredit answerupgrade noanswerclean noanswerdiff
           noansweredit noanswerupgrade cleanmenu diffmenu editmenu upgrademenu cleanafter nocleanafter
           nocleanmenu nodiffmenu noupgrademenu provides noprovides pgpfetch nopgpfetch
-          useask nouseask combinedupgrade nocombinedupgrade aur repo makepkgconf
+          useask nouseask fuzzy nofuzzy langcheck nolangcheck srccheck nosrccheck combinedupgrade nocombinedupgrade aur repo makepkgconf
           nomakepkgconf askremovemake removemake noremovemake completioninterval aururl
           searchby batchinstall nobatchinstall'
     'b d h q r v')
   yays=('clean gendb' 'c')
-  show=('complete defaultconfig currentconfig stats  news' 'c d g s w')
+  show=('complete defaultconfig currentconfig stats  news pkgbuild' 'c d g s w p')
   getpkgbuild=('force' 'f')
 
   for o in 'D database' 'F files' 'Q query' 'R remove' 'S sync' 'U upgrade' 'Y yays' 'P show' 'G getpkgbuild'; do
@@ -118,6 +118,9 @@ _yay() {
         ;;
       G)
         _yay_pkg
+        ;;
+      P)
+        _arch_incomp 'p pkgbuild' && _yay_pkg
         ;;
       esac
   fi

@@ -1,6 +1,14 @@
-# Yay
+# Yay Improved
+My custom modifications to the well known AUR helper and pacman wrapper [yay](https://github.com/Jguer/yay). It's not my AUR helper, I just changed and added stuff I thought they should be changed and added. <br>
+I try to keep this up to date with official yay versions.
 
-Yet Another Yogurt - An AUR Helper Written in Go
+### Improvements/Changes
+- Merged and adjusted PR [#1271](https://github.com/Jguer/yay/pull/1271)<br>
+- Merged PR [#1262](https://github.com/Jguer/yay/pull/1262)<br>
+- Improve output
+- Show more informations of AUR packages before installing/upgrading
+    - Languages used
+    - Sources used
 
 #### Packages
 
@@ -15,13 +23,7 @@ Yet Another Yogurt - An AUR Helper Written in Go
 There's a point in everyone's life when you feel the need to write an AUR helper because there are only about 20 of them.
 So say hi to 20+1.
 
-Yay is based on the design of [yaourt](https://github.com/archlinuxfr/yaourt), [apacman](https://github.com/oshazard/apacman) and [pacaur](https://github.com/rmarquis/pacaur). It is developed with these objectives in mind:
-
-- Provide an interface for pacman
-- Yaourt-style interactive search/install
-- Minimal dependencies
-- Minimize user input
-- Know when git packages are due for upgrades
+Yayim is based on [yay](https://github.com/Jguer/yay)
 
 ## Features
 
@@ -42,7 +44,7 @@ Alternatively, the initial installation of Yay can be done by cloning the PKGBUI
 building with makepkg:
 
 ```sh
-git clone https://aur.archlinux.org/yay.git
+git clone https://aur.archlinux.org/yayim.git
 cd yay
 makepkg -si
 ```

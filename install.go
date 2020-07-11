@@ -11,6 +11,7 @@ import (
 	"sync"
 
 	alpm "github.com/Jguer/go-alpm"
+	"github.com/JojiiOfficial/gaw"
 	gosrc "github.com/Morganamilo/go-srcinfo"
 	"github.com/leonelquinteros/gotext"
 
@@ -224,7 +225,6 @@ func install(cmdArgs *settings.Arguments, alpmHandle *alpm.Handle, ignoreProvide
 	}
 
 	do.Print()
-	fmt.Println()
 
 	if config.CleanAfter {
 		defer cleanAfter(do.Aur)
@@ -307,6 +307,52 @@ func install(cmdArgs *settings.Arguments, alpmHandle *alpm.Handle, ignoreProvide
 	srcinfos, err = parseSrcinfoFiles(do.Aur, true)
 	if err != nil {
 		return err
+	}
+
+	// Create an aurInfo object for
+	// language and src checks
+	aurInfo := NewAURInfo(srcinfos)
+
+	// Append language check
+	if config.LangCheck {
+		langs, count, err := aurInfo.GetLanguages()
+		if err == nil {
+			printDownloads("Langs", count, 0, langs)
+		} else {
+			fmt.Println(err)
+		}
+	}
+
+	// Print used sources
+	if config.SourceCheck {
+		sources, count := aurInfo.GetSourceList()
+		if len(sources) > 0 {
+			printDownloads("Sources", int(count), 0, "")
+			for ftype, source := range sources {
+				// Append 'other' at the end
+				if ftype == "other" {
+					continue
+				}
+
+				if len(source) == 0 {
+					continue
+				}
+
+				fmt.Println(blue(" [" + ftype + "] "))
+				for _, s := range source {
+					fmt.Println(blue("  ->"), s)
+				}
+			}
+
+			if len(sources["other"]) > 0 {
+				fmt.Println(blue(" [Other] "))
+				for _, s := range sources["other"] {
+					fmt.Println(blue("  ->"), s)
+				}
+			}
+
+			fmt.Println()
+		}
 	}
 
 	if config.EditMenu {
@@ -413,27 +459,30 @@ func removeMake(do *dep.Order) error {
 	return err
 }
 
-func inRepos(syncDB alpm.DBList, pkg string) bool {
+func inRepos(syncDB alpm.DBList, pkg string) (string, bool) {
 	target := dep.ToTarget(pkg)
 
 	if target.DB == "aur" {
-		return false
+		return "", false
 	} else if target.DB != "" {
-		return true
+		return target.DB, true
 	}
 
-	previousHideMenus := settings.HideMenus
-	settings.HideMenus = false
-	_, err := syncDB.FindSatisfier(target.DepString())
-	settings.HideMenus = previousHideMenus
+	previousHideMenus := hideMenus
+	hideMenus = false
+	pack, err := syncDB.FindSatisfier(target.DepString())
+	hideMenus = previousHideMenus
 	if err == nil {
-		return true
+		return pack.DB().Name(), true
 	}
 
-	return !syncDB.FindGroupPkgs(target.Name).Empty()
+	return "", !syncDB.FindGroupPkgs(target.Name).Empty()
 }
 
 func earlyPacmanCall(cmdArgs *settings.Arguments, alpmHandle *alpm.Handle) error {
+	repoTargets := []string{}
+	aurTargets := []string{}
+
 	arguments := cmdArgs.Copy()
 	arguments.Op = "S"
 	targets := cmdArgs.Targets
@@ -445,17 +494,43 @@ func earlyPacmanCall(cmdArgs *settings.Arguments, alpmHandle *alpm.Handle) error
 		return err
 	}
 
-	if config.Runtime.Mode == settings.ModeRepo {
+	allTargets := ""
+
+	if mode == modeRepo {
 		arguments.Targets = targets
 	} else {
 		// separate aur and repo targets
 		for _, target := range targets {
-			if inRepos(syncDB, target) {
+			_, tn := text.SplitDBFromName(target)
+
+			if pack, in := inRepos(syncDB, target); in {
+				// Prevent installing the same package twice
+				if gaw.IsInStringArray(target, repoTargets) {
+					continue
+				}
+
+				// View where the package is from
+				if pack != "" {
+					allTargets += text.ColorHash(pack) + "/" + tn + " "
+				}
+
 				arguments.AddTarget(target)
+				repoTargets = append(repoTargets, target)
 			} else {
+				if gaw.IsInStringArray(target, aurTargets) {
+					continue
+				}
+
+				allTargets += text.ColorHash("aur") + "/" + tn + " "
+
 				cmdArgs.AddTarget(target)
+				aurTargets = append(aurTargets, target)
 			}
 		}
+	}
+
+	if len(allTargets) > 0 {
+		fmt.Println("Installing:", allTargets)
 	}
 
 	if cmdArgs.ExistsArg("y", "refresh") || cmdArgs.ExistsArg("u", "sysupgrade") || len(arguments.Targets) > 0 {
@@ -778,8 +853,7 @@ func showPkgbuildDiffs(bases []dep.Base, cloned stringset.StringSet) error {
 		args := []string{
 			"diff",
 			start + "..HEAD@{upstream}", "--src-prefix",
-			dir + "/", "--dst-prefix", dir + "/", "--", ".", ":(exclude).SRCINFO",
-		}
+			dir + "/", "--dst-prefix", dir + "/", "--", ".", ":(exclude).SRCINFO"}
 		if text.UseColor {
 			args = append(args, "--color=always")
 		} else {
@@ -958,8 +1032,8 @@ func buildInstallPkgbuilds(
 	do *dep.Order,
 	srcinfos map[string]*gosrc.Srcinfo,
 	incompatible stringset.StringSet,
-	conflicts stringset.MapStringSet,
-) error {
+	conflicts stringset.MapStringSet) error {
+
 	arguments := cmdArgs.Copy()
 	arguments.ClearTargets()
 	arguments.Op = "U"

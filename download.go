@@ -73,7 +73,7 @@ func gitHasDiff(path, name string) (bool, error) {
 
 // TODO: yay-next passes args through the header, use that to unify ABS and AUR
 func gitDownloadABS(url, path, name string) (bool, error) {
-	if err := os.MkdirAll(path, 0o755); err != nil {
+	if err := os.MkdirAll(path, 0700); err != nil {
 		return false, err
 	}
 
@@ -296,7 +296,7 @@ func getPkgbuildsfromABS(pkgs []string, path string, alpmHandle *alpm.Handle, fo
 			return
 		}
 
-		_, stderr, err := capture(exec.Command("cp", "-r", filepath.Join(config.ABSDir, pkg, "trunk"), filepath.Join(path, pkg)))
+		_, stderr, err := capture(exec.Command("cp", "-r", filepath.Clean(filepath.Join(config.ABSDir, pkg, "trunk")), filepath.Clean(filepath.Join(path, pkg))))
 		mux.Lock()
 		downloaded++
 		if err != nil {

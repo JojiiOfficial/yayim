@@ -15,6 +15,7 @@ import (
 	"github.com/Jguer/yay/v10/pkg/query"
 	"github.com/Jguer/yay/v10/pkg/settings"
 	"github.com/Jguer/yay/v10/pkg/text"
+	"github.com/ktr0731/go-fuzzyfinder"
 )
 
 func usage() {
@@ -36,7 +37,7 @@ operations:
 
 New operations:
     yay {-Y --yay}         [options] [package(s)]
-    yay {-P --show}        [options]
+    yay {-P --show}        [options] [package(s)]
     yay {-G --getpkgbuild} [package(s)]
 
 If no arguments are provided 'yay -Syu' will be performed
@@ -114,6 +115,12 @@ Permanent configuration options:
     --nocombinedupgrade   Perform the repo upgrade and AUR upgrade separately
     --batchinstall        Build multiple AUR packages then install them together
     --nobatchinstall      Build and install each AUR package one by one
+    --fuzzy               Use fuzzy finding instead of number selection
+	--nofuzzy             Use number selection instead of fuzzy finding
+	--langcheck           Print languages used in AUR repository
+	--nolangcheck         Don't print languages used in AUR repository
+	--srccheck            View sources before building an AUR package
+	--nosrccheck          Don't View sources before building an AUR package
 
     --sudo                <file>  sudo command to use
     --sudoflags           <flags> Pass arguments to sudo
@@ -129,6 +136,7 @@ show specific options:
     -g --currentconfig    Print current yay configuration
     -s --stats            Display system package statistics
     -w --news             Print arch news
+    -p --pkgbuild         Print pkgbuild of packages
 
 yay specific options:
     -c --clean            Remove unneeded dependencies
@@ -205,6 +213,8 @@ func handlePrint(cmdArgs *settings.Arguments, alpmHandle *alpm.Handle) (err erro
 		fmt.Printf("%v", config)
 	case cmdArgs.ExistsArg("n", "numberupgrades"):
 		err = printNumberOfUpdates(alpmHandle, cmdArgs.ExistsDouble("u", "sysupgrade"))
+	case cmdArgs.ExistsArg("u", "upgrades"):
+		err = printUpdateList(cmdArgs, alpmHandle, false)
 	case cmdArgs.ExistsArg("w", "news"):
 		double := cmdArgs.ExistsDouble("w", "news")
 		quiet := cmdArgs.ExistsArg("q", "quiet")
@@ -215,6 +225,8 @@ func handlePrint(cmdArgs *settings.Arguments, alpmHandle *alpm.Handle) (err erro
 		err = completion.Show(alpmHandle, config.AURURL, config.Runtime.CompletionPath, config.CompletionInterval, false)
 	case cmdArgs.ExistsArg("s", "stats"):
 		err = localStatistics(alpmHandle)
+	case cmdArgs.ExistsArg("p", "pkgbuild"):
+		err = printPkgbuilds(cmdArgs.Targets, alpmHandle)
 	default:
 		err = nil
 	}
@@ -243,6 +255,13 @@ func handleGetpkgbuild(cmdArgs *settings.Arguments, alpmHandle *alpm.Handle) err
 
 func handleYogurt(cmdArgs *settings.Arguments, alpmHandle *alpm.Handle) error {
 	config.SearchMode = numberMenu
+	if cmdArgs.ExistsArg("fuzzy") {
+		return createDevelDB(config.Runtime.VCSPath, alpmHandle)
+	}
+	if config.Fuzzy {
+		return displayFuzzyMenu(cmdArgs.Targets, cmdArgs)
+	}
+
 	return displayNumberMenu(cmdArgs.Targets, alpmHandle, cmdArgs)
 }
 
@@ -405,6 +424,116 @@ func displayNumberMenu(pkgS []string, alpmHandle *alpm.Handle, cmdArgs *settings
 	}
 
 	return install(arguments, alpmHandle, true)
+}
+
+// FuzzyMenu presents a CLI for selecting packages to install. similar to fzy
+func displayFuzzyMenu(pkgS []string, cmdArgs *settings.Arguments) (err error) {
+	var (
+		aurErr, repoErr error
+		aq              aurQuery
+		pq              repoQuery
+		lenaq, lenpq    int
+		reverse         bool
+	)
+
+	switch config.SortMode {
+	case topDown:
+		reverse = false
+	case bottomUp:
+		reverse = true
+	default:
+		return fmt.Errorf("invalid sort mode. Fix with yay -Y --bottomup --save")
+	}
+
+	pkgS = query.RemoveInvalidTargets(pkgS, settings.ModeAny)
+
+	if mode == modeAUR || mode == modeAny {
+		aq, aurErr = narrowSearch(pkgS, true)
+		lenaq = len(aq)
+	}
+	if mode == modeRepo || mode == modeAny {
+		pq, repoErr = queryRepo(pkgS, alpmHandle)
+		lenpq = len(pq)
+		if repoErr != nil {
+			return err
+		}
+	}
+
+	if lenpq == 0 && lenaq == 0 {
+		return fmt.Errorf("no packages match search")
+	}
+
+	if aurErr != nil {
+		fmt.Fprintf(os.Stderr, "Error during AUR search: %s\n", aurErr)
+		fmt.Fprintln(os.Stderr, "Showing repo packages only")
+	}
+
+	q := make([]interface{}, lenaq+lenpq)
+
+	localDB, _ := alpmHandle.LocalDB()
+
+	i, err := fuzzyfinder.Find(q, func(i int) string {
+		var txt string
+
+		oldColor := text.UseColor
+		text.UseColor = false
+
+		if reverse {
+			if i < lenpq {
+				txt = format(&pq[lenpq-i-1], i)
+			} else {
+				j := i - lenpq
+				txt = formatAur(&aq[lenaq-j-1], i, localDB)
+			}
+		} else {
+			if i < lenaq {
+				txt = formatAur(&aq[i], i, localDB)
+			} else {
+				j := i - lenaq
+				txt = format(&pq[j], i)
+			}
+		}
+
+		text.UseColor = oldColor
+		return txt
+	})
+	if err != nil {
+		return err
+	}
+	fuzzyfinder.UseMockedTerminal()
+
+	arguments := cmdArgs.CopyGlobal()
+
+	if reverse {
+		if i < lenpq {
+			pkg := pq[lenpq-i-1]
+			arguments.AddTarget(pkg.DB().Name() + "/" + pkg.Name())
+		} else {
+			j := i - lenpq
+			pkg := aq[lenaq-j-1]
+			arguments.AddTarget("aur/" + pkg.Name)
+		}
+	} else {
+		if i < lenaq {
+			pkg := aq[i]
+			arguments.AddTarget("aur/" + pkg.Name)
+		} else {
+			j := i - lenaq
+			pkg := pq[j]
+			arguments.AddTarget(pkg.DB().Name() + "/" + pkg.Name())
+		}
+	}
+
+	if len(arguments.Targets) == 0 {
+		fmt.Println("There is nothing to do")
+		return nil
+	}
+
+	if config.SudoLoop {
+		sudoLoopBackground()
+	}
+
+	return install(arguments, alpmHandle, false)
 }
 
 func syncList(cmdArgs *settings.Arguments, alpmHandle *alpm.Handle) error {

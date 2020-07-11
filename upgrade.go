@@ -377,7 +377,8 @@ func upgradePkgs(aurUp, repoUp upSlice) (ignore, aurNames stringset.StringSet, e
 	fmt.Printf("%s"+bold(" %d ")+"%s\n", bold(cyan("::")), allUpLen, bold(gotext.Get("Packages to upgrade.")))
 	allUp.print()
 
-	text.Infoln(gotext.Get("Packages to exclude: (eg: \"1 2 3\", \"1-3\", \"^4\" or repo name)"))
+	// TODO add noexclude
+	text.Infoln(gotext.Get(`Packages to exclude: (eg: "1 2 3", "1-3", "^4" or repo name)`))
 
 	numbers, err := getInput(config.AnswerUpgrade)
 	if err != nil {

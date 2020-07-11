@@ -79,6 +79,12 @@ _pacman_opts_common=(
 
 	'--bottomup[Show AUR packages first]'
 	'--topdown[Show repository packages first]'
+	'--fuzzy[Use fuzzy finding instead of number selection]'
+	'--nofuzzy[Use number selection instead of fuzzy finding]'
+	'--langcheck[Print languages used in AUR repository]'
+	"--nolangcheck[Don't print languages used in AUR repository]"
+	'--srccheck[View sources before building an AUR package]'
+	"--nosrccheck[Don't View sources before building an AUR package]"
 	'--devel[Check -git/-svn/-hg development version]'
 	'--nodevel[Disable development version checking]'
 	'--cleanafter[Clean package sources after successful build]'
@@ -171,6 +177,7 @@ _pacman_opts_print_modifiers=(
 		{-s,--stats}'[Display system package statistics]'
 		{-u,--upgrades}'[Print update list]'
 		{-w,--news}'[Print arch news]'
+		{-p,--pkgbuild}'[Print PKGBUILDs]:package:_pacman_completions_all_packages'
 )
 # options for passing to _arguments: options for --remove command
 _pacman_opts_remove=(
@@ -506,6 +513,11 @@ _pacman_zsh_comp() {
 			;;
 		Q*)
 			_pacman_action_query
+			;;
+		P*p*)
+			 _arguments -s : \
+				"$_pacman_opts_print_modifiers[@]" \
+				"*:package:_pacman_all_packages"
 			;;
 		P*)
 			 _arguments -s : \

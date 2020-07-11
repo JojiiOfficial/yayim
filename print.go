@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"net/url"
 	"os"
 	"strconv"
 	"strings"
@@ -9,14 +10,43 @@ import (
 	"github.com/leonelquinteros/gotext"
 	rpc "github.com/mikkeloscar/aur"
 
-	"github.com/Jguer/go-alpm"
-
+	alpm "github.com/Jguer/go-alpm"
 	"github.com/Jguer/yay/v10/pkg/intrange"
+	"github.com/Jguer/yay/v10/pkg/multierror"
 	"github.com/Jguer/yay/v10/pkg/query"
 	"github.com/Jguer/yay/v10/pkg/settings"
 	"github.com/Jguer/yay/v10/pkg/stringset"
 	"github.com/Jguer/yay/v10/pkg/text"
 )
+
+const arrow = "==>"
+const smallArrow = " ->"
+
+func print(warnings *query.AURWarnings) {
+	if len(warnings.Missing) > 0 {
+		text.Warn(gotext.Get("Missing AUR Packages:"))
+		for _, name := range warnings.Missing {
+			fmt.Print("  " + cyan(name))
+		}
+		fmt.Println()
+	}
+
+	if len(warnings.Orphans) > 0 {
+		text.Warn(gotext.Get("Orphaned AUR Packages:"))
+		for _, name := range warnings.Orphans {
+			fmt.Print("  " + cyan(name))
+		}
+		fmt.Println()
+	}
+
+	if len(warnings.OutOfDate) > 0 {
+		text.Warn(gotext.Get("Flagged Out Of Date AUR Packages:"))
+		for _, name := range warnings.OutOfDate {
+			fmt.Print("  " + cyan(name))
+		}
+		fmt.Println()
+	}
+}
 
 // PrintSearch handles printing search results in a given format
 func (q aurQuery) printSearch(start int, alpmHandle *alpm.Handle) {
@@ -63,6 +93,39 @@ func (q aurQuery) printSearch(start int, alpmHandle *alpm.Handle) {
 	}
 }
 
+func formatAur(pkg *rpc.Pkg, i int, localDB *alpm.DB) string {
+	toprint := magenta(strconv.Itoa(i+1)+" ") +
+		bold(
+			text.ColorHash("aur"),
+		) + "/" +
+		bold(pkg.Name) + " " +
+		cyan(pkg.Version) +
+		bold(
+			" (+"+strconv.Itoa(pkg.NumVotes),
+		) + " " +
+		bold(
+			strconv.FormatFloat(pkg.Popularity, 'f', 2, 64)+"%) ",
+		)
+
+	if pkg.Maintainer == "" {
+		toprint += bold(red("(Orphaned)")) + " "
+	}
+
+	if pkg.OutOfDate != 0 {
+		toprint += bold(red("(Out-of-date "+text.FormatTime(pkg.OutOfDate)+")")) + " "
+	}
+
+	if p := localDB.Pkg(pkg.Name); p != nil {
+		if p.Version() != pkg.Version {
+			toprint += bold(green("(Installed: " + p.Version() + ")"))
+		} else {
+			toprint += bold(green("(Installed)"))
+		}
+	}
+	toprint += "\n    " + pkg.Description
+	return toprint
+}
+
 // PrintSearch receives a RepoSearch type and outputs pretty text.
 func (s repoQuery) printSearch(alpmHandle *alpm.Handle) {
 	for i, res := range s {
@@ -106,6 +169,39 @@ func (s repoQuery) printSearch(alpmHandle *alpm.Handle) {
 	}
 }
 
+// PrintSearch receives a RepoSearch type and outputs pretty text.
+func format(res *alpm.Package, i int) string {
+	toprint := magenta(strconv.Itoa(i+1)+" ") +
+		bold(
+			text.ColorHash(res.DB().Name()),
+		) + "/" +
+		bold(res.Name()) + " " +
+		cyan(res.Version()) +
+		bold(
+			" ("+
+				text.Human(res.Size())+" "+
+				text.Human(res.ISize())+") ",
+		)
+
+	if len(res.Groups().Slice()) != 0 {
+		toprint += fmt.Sprint(res.Groups().Slice(), " ")
+	}
+
+	localDB, err := alpmHandle.LocalDB()
+	if err == nil {
+		if pkg := localDB.Pkg(res.Name()); pkg != nil {
+			if pkg.Version() != res.Version() {
+				toprint += bold(green("(Installed: " + pkg.Version() + ")"))
+			} else {
+				toprint += bold(green("(Installed)"))
+			}
+		}
+	}
+
+	toprint += "\n    " + res.Description()
+	return toprint
+}
+
 // Pretty print a set of packages from the same package base.
 
 func (u *upgrade) StylizedNameWithRepository() string {
@@ -138,26 +234,157 @@ func (u upSlice) print() {
 	}
 }
 
+// Print prints repository packages to be downloaded
+// func (do *depOrder) Print() {
+// 	repo := ""
+// 	repoMake := ""
+// 	aur := ""
+// 	aurMake := ""
+
+// 	repoLen := 0
+// 	repoMakeLen := 0
+// 	aurLen := 0
+// 	aurMakeLen := 0
+
+// 	for _, pkg := range do.Repo {
+// 		if do.Runtime.Get(pkg.Name()) {
+// 			repo += "  " + pkg.Name() + "-" + pkg.Version()
+// 			repoLen++
+// 		} else {
+// 			repoMake += "  " + pkg.Name() + "-" + pkg.Version()
+// 			repoMakeLen++
+// 		}
+// 	}
+
+// 	for _, base := range do.Aur {
+// 		pkg := base.Pkgbase()
+// 		pkgStr := "  " + pkg + "-" + base[0].Version
+// 		pkgStrMake := pkgStr
+
+// 		push := false
+// 		pushMake := false
+
+// 		switch {
+// 		case len(base) > 1, pkg != base[0].Name:
+// 			pkgStr += " ("
+// 			pkgStrMake += " ("
+
+// 			for _, split := range base {
+// 				if do.Runtime.Get(split.Name) {
+// 					pkgStr += split.Name + " "
+// 					aurLen++
+// 					push = true
+// 				} else {
+// 					pkgStrMake += split.Name + " "
+// 					aurMakeLen++
+// 					pushMake = true
+// 				}
+// 			}
+
+// 			pkgStr = pkgStr[:len(pkgStr)-1] + ")"
+// 			pkgStrMake = pkgStrMake[:len(pkgStrMake)-1] + ")"
+// 		case do.Runtime.Get(base[0].Name):
+// 			aurLen++
+// 			push = true
+// 		default:
+// 			aurMakeLen++
+// 			pushMake = true
+// 		}
+
+// 		if push {
+// 			aur += pkgStr
+// 		}
+// 		if pushMake {
+// 			aurMake += pkgStrMake
+// 		}
+// 	}
+
+// 	printDownloads("Repo", repoLen, 9, repo)
+// 	printDownloads("Repo Make", repoMakeLen, 9, repoMake)
+// 	printDownloads("Aur", aurLen, 9, aur)
+// 	printDownloads("Aur Make", aurMakeLen, 9, aurMake)
+// }
+
+func printDownloads(repoName string, length, padd int, packages string) {
+	packages = strings.TrimSpace(packages)
+	if length < 1 {
+		return
+	}
+
+	repoInfo := bold(blue("[" + repoName + ": " + strconv.Itoa(length) + "]"))
+
+	var padding string
+	// Create padding for aligning
+	if padd != 0 {
+		paddMount := int(padd / 8)
+		padding = strings.Repeat("\t", paddMount)
+	} else {
+		padding = " "
+	}
+
+	fmt.Println(repoInfo + padding + cyan(packages))
+}
+
 // PrintInfo prints package info like pacman -Si.
 func PrintInfo(a *rpc.Pkg, extendedInfo bool) {
 	text.PrintInfoValue(gotext.Get("Repository"), "aur")
 	text.PrintInfoValue(gotext.Get("Name"), a.Name)
-	text.PrintInfoValue(gotext.Get("Keywords"), strings.Join(a.Keywords, "  "))
+	if len(a.Keywords) > 0 {
+		text.PrintInfoValue(gotext.Get("Keywords"), strings.Join(a.Keywords, "  "))
+	}
+
 	text.PrintInfoValue(gotext.Get("Version"), a.Version)
 	text.PrintInfoValue(gotext.Get("Description"), a.Description)
 	text.PrintInfoValue(gotext.Get("URL"), a.URL)
 	text.PrintInfoValue(gotext.Get("AUR URL"), config.AURURL+"/packages/"+a.Name)
-	text.PrintInfoValue(gotext.Get("Groups"), strings.Join(a.Groups, "  "))
+
+	if len(a.Groups) > 0 {
+		text.PrintInfoValue(gotext.Get("Groups"), strings.Join(a.Groups, "  "))
+	}
+
+	if len(a.URL) > 0 {
+		u, err := url.Parse(a.URL)
+		if err == nil && u.Host == "github.com" {
+			lang, err := getLanguagesFromRepo(a.URL)
+			if err == nil {
+				add := ""
+				if len(lang) > 1 {
+					add = "s"
+				}
+				text.PrintInfoValue(gotext.Get("Language"+add), langsToOneliner(parseLanguages(lang), "%"))
+			}
+		}
+	}
+
 	text.PrintInfoValue(gotext.Get("Licenses"), strings.Join(a.License, "  "))
-	text.PrintInfoValue(gotext.Get("Provides"), strings.Join(a.Provides, "  "))
-	text.PrintInfoValue(gotext.Get("Depends On"), strings.Join(a.Depends, "  "))
-	text.PrintInfoValue(gotext.Get("Make Deps"), strings.Join(a.MakeDepends, "  "))
-	text.PrintInfoValue(gotext.Get("Check Deps"), strings.Join(a.CheckDepends, "  "))
-	text.PrintInfoValue(gotext.Get("Optional Deps"), strings.Join(a.OptDepends, "  "))
-	text.PrintInfoValue(gotext.Get("Conflicts With"), strings.Join(a.Conflicts, "  "))
+
+	if len(a.Provides) > 0 {
+		text.PrintInfoValue(gotext.Get("Provides"), strings.Join(a.Provides, "  "))
+	}
+
+	if len(a.Depends) > 0 {
+		text.PrintInfoValue(gotext.Get("Depends On"), strings.Join(a.Depends, "  "))
+	}
+
+	if len(a.MakeDepends) > 0 {
+		text.PrintInfoValue(gotext.Get("Make Deps"), strings.Join(a.MakeDepends, "  "))
+	}
+
+	if len(a.CheckDepends) > 0 {
+		text.PrintInfoValue(gotext.Get("Check Deps"), strings.Join(a.CheckDepends, "  "))
+	}
+
+	if len(a.OptDepends) > 0 {
+		text.PrintInfoValue(gotext.Get("Optional Deps"), strings.Join(a.OptDepends, "  "))
+	}
+
+	if len(a.Conflicts) > 0 {
+		text.PrintInfoValue(gotext.Get("Conflicts With"), strings.Join(a.Conflicts, "  "))
+	}
+
 	text.PrintInfoValue(gotext.Get("Maintainer"), a.Maintainer)
 	text.PrintInfoValue(gotext.Get("Votes"), fmt.Sprintf("%d", a.NumVotes))
-	text.PrintInfoValue(gotext.Get("Popularity"), fmt.Sprintf("%f", a.Popularity))
+	text.PrintInfoValue(gotext.Get("Popularity"), fmt.Sprintf("%.2f", a.Popularity))
 	text.PrintInfoValue(gotext.Get("First Submitted"), text.FormatTimeQuery(a.FirstSubmitted))
 	text.PrintInfoValue(gotext.Get("Last Modified"), text.FormatTimeQuery(a.LastModified))
 
@@ -312,6 +539,27 @@ outer:
 	return nil
 }
 
+type item struct {
+	Title       string `xml:"title"`
+	Link        string `xml:"link"`
+	Description string `xml:"description"`
+	PubDate     string `xml:"pubDate"`
+	Creator     string `xml:"dc:creator"`
+}
+
+type channel struct {
+	Title         string `xml:"title"`
+	Link          string `xml:"link"`
+	Description   string `xml:"description"`
+	Language      string `xml:"language"`
+	Lastbuilddate string `xml:"lastbuilddate"`
+	Items         []item `xml:"item"`
+}
+
+type rss struct {
+	Channel channel `xml:"channel"`
+}
+
 const (
 	redCode     = "\x1b[31m"
 	greenCode   = "\x1b[32m"
@@ -353,4 +601,54 @@ func magenta(in string) string {
 
 func bold(in string) string {
 	return stylize(boldCode, in)
+}
+
+func printPkgbuilds(pkgS []string, alpmHandle *alpm.Handle) error {
+	var pkgbuilds []string
+	var localPkgbuilds []string
+	missing := false
+	pkgS = query.RemoveInvalidTargets(pkgS, settings.ModeAny)
+	aurS, repoS, err := packageSlices(pkgS, alpmHandle)
+	if err != nil {
+		return err
+	}
+	var errs multierror.MultiError
+
+	if len(aurS) != 0 {
+		noDB := make([]string, 0, len(aurS))
+		for _, pkg := range aurS {
+			_, name := text.SplitDBFromName(pkg)
+			noDB = append(noDB, name)
+		}
+		localPkgbuilds, err = aurPkgbuilds(noDB)
+		pkgbuilds = append(pkgbuilds, localPkgbuilds...)
+		errs.Add(err)
+	}
+
+	if len(repoS) != 0 {
+		localPkgbuilds, err = repoPkgbuilds(repoS)
+		pkgbuilds = append(pkgbuilds, localPkgbuilds...)
+		errs.Add(err)
+	}
+
+	if err = errs.Return(); err != nil {
+		missing = true
+		fmt.Fprintln(os.Stderr, err)
+	}
+
+	if len(aurS) != len(pkgbuilds) {
+		missing = true
+	}
+
+	if len(pkgbuilds) != 0 {
+		for _, pkgbuild := range pkgbuilds {
+			fmt.Print(pkgbuild)
+		}
+	}
+
+	if missing {
+		err = fmt.Errorf("")
+	}
+
+	return err
 }

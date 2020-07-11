@@ -407,6 +407,12 @@ func isArg(arg string) bool {
 	case "noeditmenu":
 	case "useask":
 	case "nouseask":
+	case "fuzzy":
+	case "nofuzzy":
+	case "langcheck":
+	case "nolangcheck":
+	case "srccheck":
+	case "nosrccheck":
 	case "combinedupgrade":
 	case "nocombinedupgrade":
 	case "a", "aur":
@@ -562,6 +568,18 @@ func handleConfig(config *Configuration, option, value string) bool {
 		config.UseAsk = true
 	case "nouseask":
 		config.UseAsk = false
+	case "fuzzy":
+		config.Fuzzy = true
+	case "nofuzzy":
+		config.Fuzzy = false
+	case "langcheck":
+		config.LangCheck = true
+	case "nolangcheck":
+		config.LangCheck = false
+	case "srccheck":
+		config.SourceCheck = true
+	case "nosrccheck":
+		config.SourceCheck = false
 	case "combinedupgrade":
 		config.CombinedUpgrade = true
 	case "nocombinedupgrade":

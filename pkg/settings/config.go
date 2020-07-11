@@ -62,6 +62,9 @@ type Configuration struct {
 	UseAsk             bool     `json:"useask"`
 	BatchInstall       bool     `json:"batchinstall"`
 	Runtime            *Runtime `json:"-"`
+	Fuzzy              bool     `json:"fuzzy"`
+	LangCheck          bool     `json:"langcheck"`
+	SourceCheck        bool     `json:"srccheck"`
 }
 
 // SaveConfig writes yay config to file.

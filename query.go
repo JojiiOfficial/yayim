@@ -3,14 +3,20 @@ package main
 import (
 	"errors"
 	"fmt"
+	"io/ioutil"
+	"net/http"
+	"net/url"
 	"os"
 	"sort"
 	"strings"
+	"sync"
 
 	alpm "github.com/Jguer/go-alpm"
 	"github.com/leonelquinteros/gotext"
 	rpc "github.com/mikkeloscar/aur"
 
+	"github.com/Jguer/yay/v10/pkg/intrange"
+	"github.com/Jguer/yay/v10/pkg/multierror"
 	"github.com/Jguer/yay/v10/pkg/query"
 	"github.com/Jguer/yay/v10/pkg/settings"
 	"github.com/Jguer/yay/v10/pkg/stringset"
@@ -428,4 +434,216 @@ func statistics(alpmHandle *alpm.Handle) (*struct {
 	}
 
 	return info, err
+}
+
+// Queries the aur for information about specified packages.
+// All packages should be queried in a single rpc request except when the number
+// of packages exceeds the number set in config.RequestSplitN.
+// If the number does exceed config.RequestSplitN multiple rpc requests will be
+// performed concurrently.
+func aurInfo(names []string, warnings *query.AURWarnings) ([]*rpc.Pkg, error) {
+	info := make([]*rpc.Pkg, 0, len(names))
+	seen := make(map[string]int)
+	var mux sync.Mutex
+	var wg sync.WaitGroup
+	var errs multierror.MultiError
+
+	makeRequest := func(n, max int) {
+		defer wg.Done()
+		tempInfo, requestErr := rpc.Info(names[n:max])
+		errs.Add(requestErr)
+		if requestErr != nil {
+			return
+		}
+		mux.Lock()
+		for i := range tempInfo {
+			info = append(info, &tempInfo[i])
+		}
+		mux.Unlock()
+	}
+
+	for n := 0; n < len(names); n += config.RequestSplitN {
+		max := intrange.Min(len(names), n+config.RequestSplitN)
+		wg.Add(1)
+		go makeRequest(n, max)
+	}
+
+	wg.Wait()
+
+	if err := errs.Return(); err != nil {
+		return info, err
+	}
+
+	for k, pkg := range info {
+		seen[pkg.Name] = k
+	}
+
+	for _, name := range names {
+		i, ok := seen[name]
+		if !ok && !warnings.Ignore.Get(name) {
+			warnings.Missing = append(warnings.Missing, name)
+			continue
+		}
+
+		pkg := info[i]
+
+		if pkg.Maintainer == "" && !warnings.Ignore.Get(name) {
+			warnings.Orphans = append(warnings.Orphans, name)
+		}
+		if pkg.OutOfDate != 0 && !warnings.Ignore.Get(name) {
+			warnings.OutOfDate = append(warnings.OutOfDate, name)
+		}
+	}
+
+	return info, nil
+}
+
+func aurInfoPrint(names []string) ([]*rpc.Pkg, error) {
+	text.OperationInfoln(gotext.Get("Querying AUR..."))
+
+	warnings := &query.AURWarnings{}
+	info, err := aurInfo(names, warnings)
+	if err != nil {
+		return info, err
+	}
+
+	warnings.Print()
+
+	return info, nil
+}
+
+func aurPkgbuilds(names []string) ([]string, error) {
+	pkgbuilds := make([]string, 0, len(names))
+	var mux sync.Mutex
+	var wg sync.WaitGroup
+	var errs multierror.MultiError
+
+	makeRequest := func(n, max int) {
+		defer wg.Done()
+
+		for _, name := range names[n:max] {
+			values := url.Values{}
+			values.Set("h", name)
+
+			url := "https://aur.archlinux.org/cgit/aur.git/plain/PKGBUILD?"
+
+			resp, err := http.Get(url + values.Encode())
+			if err != nil {
+				errs.Add(err)
+				continue
+			}
+			if resp.StatusCode != 200 {
+				errs.Add(fmt.Errorf("error code %d for package %s", resp.StatusCode, name))
+				continue
+			}
+			defer resp.Body.Close()
+
+			body, readErr := ioutil.ReadAll(resp.Body)
+			pkgbuild := string(body)
+
+			if readErr != nil {
+				errs.Add(readErr)
+				continue
+			}
+
+			mux.Lock()
+			pkgbuilds = append(pkgbuilds, pkgbuild)
+			mux.Unlock()
+		}
+	}
+
+	for n := 0; n < len(names); n += 20 {
+		max := intrange.Min(len(names), n+20)
+		wg.Add(1)
+		go makeRequest(n, max)
+	}
+
+	wg.Wait()
+
+	if err := errs.Return(); err != nil {
+		return pkgbuilds, err
+	}
+
+	return pkgbuilds, nil
+}
+
+func repoPkgbuilds(names []string) ([]string, error) {
+	pkgbuilds := make([]string, 0, len(names))
+	var mux sync.Mutex
+	var wg sync.WaitGroup
+	var errs multierror.MultiError
+
+	dbList, dbErr := alpmHandle.SyncDBs()
+	if dbErr != nil {
+		return nil, dbErr
+	}
+	dbSlice := dbList.Slice()
+
+	makeRequest := func(full string) {
+		defer wg.Done()
+
+		db, name := text.SplitDBFromName(full)
+
+		if db == "" {
+			var pkg *alpm.Package
+			for _, alpmDB := range dbSlice {
+				if pkg = alpmDB.Pkg(name); pkg != nil {
+					db = alpmDB.Name()
+					name = pkg.Base()
+					if name == "" {
+						name = pkg.Name()
+					}
+				}
+			}
+		}
+
+		values := url.Values{}
+		values.Set("h", "packages/"+name)
+
+		var url string
+
+		// TODO: Check existence with ls-remote
+		// https://git.archlinux.org/svntogit/packages.git
+		switch db {
+		case "core", "extra", "testing":
+			url = "https://git.archlinux.org/svntogit/packages.git/plain/trunk/PKGBUILD?"
+		case "community", "multilib", "community-testing", "multilib-testing":
+			url = "https://git.archlinux.org/svntogit/community.git/plain/trunk/PKGBUILD?"
+		default:
+			errs.Add(fmt.Errorf("unable to get PKGBUILD from repo \"%s\"", db))
+			return
+		}
+
+		resp, err := http.Get(url + values.Encode())
+		if err != nil {
+			errs.Add(err)
+			return
+		}
+		if resp.StatusCode != 200 {
+			errs.Add(fmt.Errorf("error code %d for package %s", resp.StatusCode, name))
+			return
+		}
+		defer resp.Body.Close()
+
+		body, readErr := ioutil.ReadAll(resp.Body)
+		pkgbuild := string(body)
+
+		if readErr != nil {
+			errs.Add(readErr)
+			return
+		}
+
+		mux.Lock()
+		pkgbuilds = append(pkgbuilds, pkgbuild)
+		mux.Unlock()
+	}
+
+	for _, full := range names {
+		wg.Add(1)
+		go makeRequest(full)
+	}
+
+	wg.Wait()
+
+	return pkgbuilds, errs.Return()
 }
