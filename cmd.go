@@ -259,7 +259,7 @@ func handleYogurt(cmdArgs *settings.Arguments, alpmHandle *alpm.Handle) error {
 		return createDevelDB(config.Runtime.VCSPath, alpmHandle)
 	}
 	if config.Fuzzy {
-		return displayFuzzyMenu(cmdArgs.Targets, cmdArgs)
+		return displayFuzzyMenu(cmdArgs.Targets, alpmHandle, cmdArgs)
 	}
 
 	return displayNumberMenu(cmdArgs.Targets, alpmHandle, cmdArgs)
@@ -427,7 +427,7 @@ func displayNumberMenu(pkgS []string, alpmHandle *alpm.Handle, cmdArgs *settings
 }
 
 // FuzzyMenu presents a CLI for selecting packages to install. similar to fzy
-func displayFuzzyMenu(pkgS []string, cmdArgs *settings.Arguments) (err error) {
+func displayFuzzyMenu(pkgS []string, alpmHandle *alpm.Handle, cmdArgs *settings.Arguments) (err error) {
 	var (
 		aurErr, repoErr error
 		aq              aurQuery
@@ -480,7 +480,7 @@ func displayFuzzyMenu(pkgS []string, cmdArgs *settings.Arguments) (err error) {
 
 		if reverse {
 			if i < lenpq {
-				txt = format(&pq[lenpq-i-1], i)
+				txt = format(&pq[lenpq-i-1], alpmHandle, i)
 			} else {
 				j := i - lenpq
 				txt = formatAur(&aq[lenaq-j-1], i, localDB)
@@ -490,7 +490,7 @@ func displayFuzzyMenu(pkgS []string, cmdArgs *settings.Arguments) (err error) {
 				txt = formatAur(&aq[i], i, localDB)
 			} else {
 				j := i - lenaq
-				txt = format(&pq[j], i)
+				txt = format(&pq[j], alpmHandle, i)
 			}
 		}
 

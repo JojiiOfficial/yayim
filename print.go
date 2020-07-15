@@ -170,7 +170,7 @@ func (s repoQuery) printSearch(alpmHandle *alpm.Handle) {
 }
 
 // PrintSearch receives a RepoSearch type and outputs pretty text.
-func format(res *alpm.Package, i int) string {
+func format(res *alpm.Package, alpmHandle *alpm.Handle, i int) string {
 	toprint := magenta(strconv.Itoa(i+1)+" ") +
 		bold(
 			text.ColorHash(res.DB().Name()),
