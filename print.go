@@ -626,7 +626,7 @@ func printPkgbuilds(pkgS []string, alpmHandle *alpm.Handle) error {
 	}
 
 	if len(repoS) != 0 {
-		localPkgbuilds, err = repoPkgbuilds(repoS)
+		localPkgbuilds, err = repoPkgbuilds(repoS, alpmHandle)
 		pkgbuilds = append(pkgbuilds, localPkgbuilds...)
 		errs.Add(err)
 	}

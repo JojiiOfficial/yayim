@@ -567,7 +567,7 @@ func aurPkgbuilds(names []string) ([]string, error) {
 	return pkgbuilds, nil
 }
 
-func repoPkgbuilds(names []string) ([]string, error) {
+func repoPkgbuilds(names []string, alpmHandle *alpm.Handle) ([]string, error) {
 	pkgbuilds := make([]string, 0, len(names))
 	var mux sync.Mutex
 	var wg sync.WaitGroup
