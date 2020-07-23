@@ -72,14 +72,19 @@ func gitHasDiff(path, name string) (bool, error) {
 }
 
 // TODO: yay-next passes args through the header, use that to unify ABS and AUR
-func gitDownloadABS(url, path, name string) (bool, error) {
+func gitDownloadABS(info pkgInfo, path, name string) (bool, error) {
 	if err := os.MkdirAll(path, 0700); err != nil {
 		return false, err
 	}
 
 	if _, errExist := os.Stat(filepath.Join(path, name)); os.IsNotExist(errExist) {
-		cmd := passToGit(path, "clone", "--no-progress", "--single-branch",
-			"-b", "packages/"+name, url, name)
+		a := []string{"clone", "--no-progress", "--single-branch"}
+		if info.customBranch {
+			a = append(a, []string{"-b", "packages/" + name}...)
+		}
+		a = append(a, []string{info.url, name}...)
+
+		cmd := passToGit(path, a...)
 		cmd.Env = append(os.Environ(), "GIT_TERMINAL_PROMPT=0")
 		_, stderr, err := capture(cmd)
 		if err != nil {
@@ -211,12 +216,17 @@ func getPkgbuilds(pkgs []string, alpmHandle *alpm.Handle, force bool) error {
 	return err
 }
 
-// GetPkgbuild downloads pkgbuild from the ABS.
+type pkgInfo struct {
+	url          string
+	customBranch bool
+}
+
+// GetPkgbuild downloads pkgbuild from the ABS or Artix's gitea.
 func getPkgbuildsfromABS(pkgs []string, path string, alpmHandle *alpm.Handle, force bool) (bool, error) {
 	var wg sync.WaitGroup
 	var mux sync.Mutex
 	var errs multierror.MultiError
-	names := make(map[string]string)
+	names := make(map[string]pkgInfo)
 	missing := make([]string, 0)
 	downloaded := 0
 
@@ -254,6 +264,8 @@ func getPkgbuildsfromABS(pkgs []string, path string, alpmHandle *alpm.Handle, fo
 			name = pkg.Name()
 		}
 
+		customBranch := true
+
 		// TODO: Check existence with ls-remote
 		// https://git.archlinux.org/svntogit/packages.git
 		switch pkg.DB().Name() {
@@ -261,6 +273,9 @@ func getPkgbuildsfromABS(pkgs []string, path string, alpmHandle *alpm.Handle, fo
 			url = "https://git.archlinux.org/svntogit/packages.git"
 		case "community", "multilib", "community-testing", "multilib-testing":
 			url = "https://git.archlinux.org/svntogit/community.git"
+		case "system", "world", "galaxy":
+			customBranch = false
+			url = fmt.Sprintf("https://gitea.artixlinux.org/packages%s/%s.git", strings.ToUpper(string(name[0])), name)
 		default:
 			missing = append(missing, name)
 			continue
@@ -281,7 +296,10 @@ func getPkgbuildsfromABS(pkgs []string, path string, alpmHandle *alpm.Handle, fo
 			continue
 		}
 
-		names[name] = url
+		names[name] = pkgInfo{
+			customBranch: customBranch,
+			url:          url,
+		}
 	}
 
 	if len(missing) != 0 {
@@ -289,9 +307,9 @@ func getPkgbuildsfromABS(pkgs []string, path string, alpmHandle *alpm.Handle, fo
 			cyan(strings.Join(missing, ", ")))
 	}
 
-	download := func(pkg string, url string) {
+	download := func(pkg string, info pkgInfo) {
 		defer wg.Done()
-		if _, err := gitDownloadABS(url, config.ABSDir, pkg); err != nil {
+		if _, err := gitDownloadABS(info, config.ABSDir, pkg); err != nil {
 			errs.Add(errors.New(gotext.Get("failed to get pkgbuild: %s: %s", cyan(pkg), err.Error())))
 			return
 		}
@@ -308,9 +326,9 @@ func getPkgbuildsfromABS(pkgs []string, path string, alpmHandle *alpm.Handle, fo
 	}
 
 	count := 0
-	for name, url := range names {
+	for name, info := range names {
 		wg.Add(1)
-		go download(name, url)
+		go download(name, info)
 		count++
 		if count%25 == 0 {
 			wg.Wait()
