@@ -601,10 +601,14 @@ func repoPkgbuilds(names []string, alpmHandle *alpm.Handle) ([]string, error) {
 		values.Set("h", "packages/"+name)
 
 		var url string
+		addValues := true
 
 		// TODO: Check existence with ls-remote
 		// https://git.archlinux.org/svntogit/packages.git
 		switch db {
+		case "system", "world", "galaxy":
+			addValues = false
+			url = fmt.Sprintf("https://gitea.artixlinux.org/packages%s/%s/raw/branch/master/trunk/PKGBUILD", strings.ToUpper(string(name[0])), name)
 		case "core", "extra", "testing":
 			url = "https://git.archlinux.org/svntogit/packages.git/plain/trunk/PKGBUILD?"
 		case "community", "multilib", "community-testing", "multilib-testing":
@@ -614,7 +618,12 @@ func repoPkgbuilds(names []string, alpmHandle *alpm.Handle) ([]string, error) {
 			return
 		}
 
-		resp, err := http.Get(url + values.Encode())
+		var add string
+		if addValues {
+			add = values.Encode()
+		}
+
+		resp, err := http.Get(url + add)
 		if err != nil {
 			errs.Add(err)
 			return
