@@ -26,6 +26,8 @@ import (
 	"github.com/Jguer/yay/v10/pkg/text"
 )
 
+const gitEmptyTree = "4b825dc642cb6eb9a060e54bf8d69288fbee4904"
+
 func asdeps(cmdArgs *settings.Arguments, pkgs []string) error {
 	if len(pkgs) == 0 {
 		return nil
@@ -94,7 +96,7 @@ func install(cmdArgs *settings.Arguments, alpmHandle *alpm.Handle, ignoreProvide
 	}
 	config.Runtime.AlpmHandle = alpmHandle
 
-	_, _, localNames, remoteNames, err := query.FilterPackages(alpmHandle)
+	localNames, remoteNames, err := query.GetPackageNamesBySource(alpmHandle)
 	if err != nil {
 		return err
 	}
@@ -141,20 +143,8 @@ func install(cmdArgs *settings.Arguments, alpmHandle *alpm.Handle, ignoreProvide
 			cmdArgs.AddTarget("aur/" + up)
 		}
 
-		value, _, exists := cmdArgs.GetArg("ignore")
-
 		if len(ignore) > 0 {
-			ignoreStr := strings.Join(ignore.ToSlice(), ",")
-			if exists {
-				ignoreStr += "," + value
-			}
-			if arguments.Options["ignore"] == nil {
-				arguments.Options["ignore"] = &settings.Option{
-					Args: []string{ignoreStr},
-				}
-			} else {
-				arguments.Options["ignore"].Add(ignoreStr)
-			}
+			arguments.CreateOrAppendOption("ignore", ignore.ToSlice()...)
 		}
 	}
 
@@ -185,11 +175,7 @@ func install(cmdArgs *settings.Arguments, alpmHandle *alpm.Handle, ignoreProvide
 		cmdArgs.Op = "S"
 		cmdArgs.DelArg("y", "refresh")
 		if arguments.ExistsArg("ignore") {
-			if cmdArgs.ExistsArg("ignore") {
-				cmdArgs.Options["ignore"].Args = append(cmdArgs.Options["ignore"].Args, arguments.Options["ignore"].Args...)
-			} else {
-				cmdArgs.Options["ignore"] = arguments.Options["ignore"]
-			}
+			cmdArgs.CreateOrAppendOption("ignore", arguments.GetArgs("ignore")...)
 		}
 		return show(passToPacman(cmdArgs))
 	}
@@ -1052,7 +1038,7 @@ func buildInstallPkgbuilds(
 	config.NoConfirm = true
 
 	//remotenames: names of all non repo packages on the system
-	_, _, localNames, remoteNames, err := query.FilterPackages(alpmHandle)
+	localNames, remoteNames, err := query.GetPackageNamesBySource(alpmHandle)
 	if err != nil {
 		return err
 	}
@@ -1191,7 +1177,7 @@ func buildInstallPkgbuilds(
 			}
 
 			if errMake := show(passToMakepkg(dir, args...)); errMake != nil {
-				return errors.New(gotext.Get("error making: %s", base.String))
+				return errors.New(gotext.Get("error making: %s", base.String()))
 			}
 		}
 

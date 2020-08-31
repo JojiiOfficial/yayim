@@ -43,6 +43,8 @@ If you are migrating from another AUR helper, you can simply install Yay with th
 Alternatively, the initial installation of Yay can be done by cloning the PKGBUILD and
 building with makepkg:
 
+Before you begin, make sure you have the `base-devel` package group installed.
+
 ```sh
 git clone https://aur.archlinux.org/yayim.git
 cd yay
@@ -114,7 +116,7 @@ If you transition between aur helpers and did not install the devel package usin
 
 #### I want to help out!
 
-Check `CONTRIBUTING.md` for more information.
+Check [CONTRIBUTING.md](./CONTRIBUTING.md) for more information.
 
 ## Examples of Custom Operations
 
